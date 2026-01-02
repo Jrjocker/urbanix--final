@@ -1,0 +1,104 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
+import { Building, Plus, Loader2 } from 'lucide-react';
+
+export default function SuperDashboard() {
+  const [tenants, setTenants] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [newTenant, setNewTenant] = useState('');
+
+  useEffect(() => { fetchTenants(); }, []);
+
+  const fetchTenants = async () => {
+    setLoading(true);
+    const { data } = await supabase.from('tenants').select('*').order('created_at', { ascending: false });
+    setTenants(data || []);
+    setLoading(false);
+  };
+
+  const handleCreateTenant = async (e) => {
+    e.preventDefault();
+    if (!newTenant) return;
+    
+    // Insere a nova prefeitura no banco
+    const { error } = await supabase.from('tenants').insert({ nome: newTenant });
+    
+    if (error) {
+      alert('Erro ao criar prefeitura. Verifique se você é Super Admin.');
+      console.error(error);
+    } else {
+      setNewTenant('');
+      fetchTenants(); // Recarrega a lista
+      alert('Prefeitura criada com sucesso!');
+    }
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto">
+      <h1 className="text-3xl font-bold text-slate-900 mb-2">Painel Urbanix (Super Admin)</h1>
+      <p className="text-slate-500 mb-8">Gerenciamento de Clientes (Tenants).</p>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* Card de Criação */}
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-fit">
+          <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Plus size={20}/> Nova Prefeitura</h3>
+          <form onSubmit={handleCreateTenant} className="space-y-4">
+            <input 
+              type="text" 
+              placeholder="Nome da Prefeitura/Empresa" 
+              className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" 
+              value={newTenant} 
+              onChange={e => setNewTenant(e.target.value)} 
+            />
+            <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700">
+              Criar Tenant
+            </button>
+          </form>
+        </div>
+
+        {/* Lista de Clientes */}
+        <div className="md:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
+            <h3 className="font-bold text-slate-700">Clientes Ativos</h3>
+          </div>
+          
+          {loading ? (
+            <div className="p-8 flex justify-center"><Loader2 className="animate-spin"/></div> 
+          ) : (
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-slate-50 text-xs uppercase text-slate-500 border-b">
+                  <th className="px-6 py-3">ID (Tenant)</th>
+                  <th className="px-6 py-3">Nome</th>
+                  <th className="px-6 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tenants.map(t => (
+                  <tr key={t.id} className="border-b last:border-0 hover:bg-slate-50">
+                    <td className="px-6 py-4 font-mono text-xs text-slate-500 select-all">{t.id}</td>
+                    <td className="px-6 py-4 font-medium text-slate-800 flex items-center gap-2">
+                      <Building size={16}/> {t.nome}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded text-xs font-bold ${t.active ? 'bg-green-100 text-green-700' : 'bg-red-100'}`}>
+                        {t.active ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {tenants.length === 0 && (
+                  <tr>
+                    <td colSpan="3" className="px-6 py-8 text-center text-slate-500">
+                      Nenhuma prefeitura cadastrada.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
